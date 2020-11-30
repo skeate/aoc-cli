@@ -1,0 +1,4 @@
+default_lang: python
+python:
+  template: templates/python.py
+  run: python solutions/python/run.py

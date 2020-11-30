@@ -1,0 +1,167 @@
+#!/usr/bin/bash
+
+ARGS=$(getopt -o 'u:d:y:l:v' --long 'user:,day:,year:,language:,verbose' -n aoc -- "$@") || exit
+eval "set -- $ARGS"
+
+function log () {
+  if [[ $VERBOSE -eq 1 ]]; then
+    echo "$@"
+  fi
+}
+
+# https://gist.github.com/masukomi/e587aa6fd4f042496871
+function parse_yaml {
+  local prefix=$2
+  local s='[[:space:]]*' w='[a-zA-Z0-9_]*' fs=$(echo @|tr @ '\034')
+  sed -ne "s|^\($s\):|\1|" \
+    -e "s|^\($s\)\($w\)$s:$s[\"']\(.*\)[\"']$s\$|\1$fs\2$fs\3|p" \
+    -e "s|^\($s\)\($w\)$s:$s\(.*\)$s\$|\1$fs\2$fs\3|p"  $1 |
+    awk -F$fs '{
+      indent = length($1)/2;
+      vname[indent] = $2;
+      for (i in vname) {if (i > indent) {delete vname[i]}}
+        if (length($3) > 0) {
+          vn=""; for (i=0; i<indent; i++) {vn=(vn)(vname[i])("_")}
+          printf("%s%s%s=\"%s\"\n", "'$prefix'",vn, $2, $3);
+        }
+    }'
+}
+
+if [ ! -f config.yml ]; then
+  echo "No config.yml found." >&2
+  exit 1
+fi
+
+eval $(parse_yaml config.yml)
+
+LANGUAGE=$default_lang
+
+if [ ! -f users.yml ]; then
+  echo "No users.yml file found. Creating default user."
+  read -p 'Username: ' USER
+  read -p 'Session Key: ' SESSID
+  echo "default_user: $USER" >> ./users.yml
+  echo "users:" >> ./users.yml
+  echo "  $USER: $SESSID" >> ./users.yml
+fi
+
+eval $(parse_yaml users.yml)
+
+USER=$default_user
+
+if [ "${@: -1}" == "run" ] && [ -f ".last_run.yml" ]; then
+  eval $(parse_yaml .last_run.yml)
+fi
+
+while true; do
+  case $1 in
+    (-u|--user)
+      USER=$2
+      shift 2;;
+    (-d|--day)
+      if ! [ $2 -eq $2 ] 2>/dev/null || [ $2 -gt 25 ] || [ $2 -lt 1 ]; then
+        echo "Invalid day; must be an integer between 1 and 25 inclusive." >&2
+        exit 1
+      fi
+      DAY=$2
+      shift 2;;
+    (-y|--year)
+      if ! [ $2 -eq $2 ] 2>/dev/null || [ $2 -lt 2015 ]; then
+        echo "Invalid year; must be an integer greater than 2014" >&2
+        exit 1
+      fi
+      YEAR=$2
+      shift 2;;
+    (-l|--lang|--language)
+      LANGUAGE=$2
+      shift 2;;
+    (-v|--verbose)
+      VERBOSE=1
+      shift;;
+    (--)  shift; break;;
+    (*)   exit 1;;
+  esac
+done
+
+if [ -z ${YEAR+" "} ] && ! [ -z ${DAY+" "} ]; then
+  echo "Cannot specify day without year." >&2
+  exit 1
+fi
+
+SESSID="users_$USER"
+
+if [ -z ${!SESSID+" "} ]; then
+  echo "Could not find session key for $USER; check users.yml" >&2
+  exit 1
+fi
+
+if [ -z ${DAY+" "} ]; then
+  # day not specified, must calculate based on what inputs we have downloaded
+  last_year=`if [ $(date +%m) -eq 12 ]; then date +%Y; else expr $(date +%Y) - 1; fi`
+  year=${YEAR:-2015}
+  day=1
+  file=
+  while [ -f "inputs/$USER/$year/$(printf "%02d" $day).txt" ]
+  do
+    ((++day))
+    if [ $day -gt 25 ]; then
+      day=1
+      ((++year))
+    fi
+    if [ $day -eq 25 ]; then
+      if [ $year -eq $last_year ] || [ -n $YEAR ]; then
+        break
+      fi
+    fi
+  done
+  YEAR=$year
+  DAY=$day
+fi
+mkdir -p "inputs/$USER/$YEAR"
+
+log "    User: $USER"
+log "     Day: $DAY"
+log "    Year: $YEAR"
+log "Language: $LANGUAGE"
+
+
+echo "USER: $USER" > .last_run.yml
+echo "LANGUAGE: $LANGUAGE" >> .last_run.yml
+echo "YEAR: $YEAR" >> .last_run.yml
+echo "DAY: $DAY" >> .last_run.yml
+
+inputfile="inputs/$USER/$YEAR/$(printf "%02d" $DAY).txt"
+if ! [ -f "$inputfile" ]; then
+  log "Missing input for day; downloading..."
+
+  if ! $(curl --silent -fb session=${!SESSID} https://adventofcode.com/$YEAR/day/$DAY/input --output $inputfile); then
+    echo "Failed to download input. Check your session key." >&2
+    exit 1
+  fi
+fi
+
+template_source="${LANGUAGE}_template"
+template_ext="${!template_source##*.}"
+if [ "$template_ext" == "${!template_source}" ]; then
+  solutionfile="solutions/$LANGUAGE/$YEAR/$(printf "%02d" $DAY)"
+else
+  solutionfile="solutions/$LANGUAGE/$YEAR/$(printf "%02d" $DAY).${template_ext}"
+fi
+
+mkdir -p "solutions/$LANGUAGE/$YEAR"
+
+if ! [ -e "$solutionfile" ]; then
+  log "Solution file does not exist; creating from template..."
+  if ! [ -e "${!template_source}" ]; then
+    echo "Template not found (checked ${!template_source})" >&2
+    exit 1
+  fi
+  cp -r "${!template_source}" "$solutionfile"
+fi
+
+if [ "$1" = "run" ]; then
+  runner="${LANGUAGE}_run"
+  eval "cat $inputfile | ${!runner} -y $YEAR -d $DAY"
+else
+  eval "$EDITOR $solutionfile"
+fi
