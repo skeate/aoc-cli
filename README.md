@@ -23,6 +23,20 @@ languages, you'll need to set them up yourself. See below for details.
     `default_lang`
 * `-u <user>`, `--user <user>` - set the user. Defaults to `default_user`.
 
+#### examples
+
+`./aoc -y 2016 -l haskell` will open up your `$EDITOR` with a template copied
+from your `haskell` setup in `config.yml` focused on the input from year 2016,
+and the day being whatever the earliest day you didn't already have a solution
+for was.
+
+`./aoc run` will run whatever your last file was. It uses `.last_run.yml` to
+track this. (If that file doesn't exist, it will attempt to create a new
+solution for the earliest unworked day, and then run it; admittedly not useful)
+
+`./aoc -y 2019 -d 22 -l js -u foo run` will run the solution for 2019, day 22,
+from the `js` solution folder, using the input from user `foo`.
+
 ## structure
 
 This project is really meant to be a starting point, so it's very flexible. Do
