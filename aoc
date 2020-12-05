@@ -161,7 +161,8 @@ fi
 
 if [ "$1" = "run" ]; then
   runner="${LANGUAGE}_run"
-  eval "cat $inputfile | ${!runner} -y $YEAR -d $DAY"
+  dir="${LANGUAGE}_workingdir"
+  eval "cat $inputfile | (cd ${!dir:-"solutions/$LANGUAGE"}; ${!runner} -y $YEAR -d $(printf "%02d" $DAY))"
 else
   eval "$EDITOR $solutionfile"
 fi

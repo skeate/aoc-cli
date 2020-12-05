@@ -71,6 +71,10 @@ a unique key with the following parameters:
     respectively. Additionally, the input will be fed into the program via
     `stdin`. For example, `run: foo` will mean `./aoc run` actually runs
     something like `cat inputs/<user>/2015/01.txt | foo -y 2015 -d 1`.
+* `workingdir`: the working directory to run the command above. this is useful
+    if your solution directory for a particular language is actually a project,
+    and it needs to be run within that root project dir, for example. This
+    defaults to `solutions/$LANGUAGE`.
 
 ### users.yml
 
