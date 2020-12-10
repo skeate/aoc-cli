@@ -50,7 +50,10 @@ whatever you want with it. That said, the initial structure is as follows:
     (as in the included python example). Also subdivided into year directories,
     with either files or directories, depending on how you set up your templates
 * `templates` - contains the templates referenced in `config.yml`. Your
-    templates can be either a single file or an entire directory.
+    templates can be either a single file or an entire directory. Template files
+    can also include the strings `%%YEAR%%` and `%%DAY%%` which will be replaced
+    with the year and day (0-padded) respectively.
+
 
 ## configuration
 

@@ -156,7 +156,12 @@ if ! [ -e "$solutionfile" ]; then
     echo "Template not found (checked ${!template_source})" >&2
     exit 1
   fi
-  cp -r "${!template_source}" "$solutionfile"
+  if [ -f "${!template_source}" ]; then
+    sed "s/%%YEAR%%/${YEAR}/g;s/%%DAY%%/$(printf "%02d" $DAY)/g" "${!template_source}" >> "$solutionfile"
+  else
+    cp -r "${!template_source}" "$solutionfile"
+    sed -i "s/%%YEAR%%/${YEAR}/g;s/%%DAY%%/$(printf "%02d" $DAY)/g" "$solutionfile"/*
+  fi
 fi
 
 if [ "$1" = "run" ]; then
